@@ -59,12 +59,14 @@ class CookiePage extends StatefulWidget {
 
 class _CookiePageState extends State<CookiePage> {
 
+  forceRedraw() {setState((){});} // Do nothing, only used for redrawing the page
+
   @override
   void initState() {
     super.initState();
-    ShakeDetector detector = ShakeDetector.autoStart(onPhoneShake: () {
-      /* Do nothing, only used for redrawing the page */
-    });
+    ShakeDetector detector = ShakeDetector.autoStart(
+        onPhoneShake: () {forceRedraw();}
+    );
   }
 
   @override
@@ -75,9 +77,16 @@ class _CookiePageState extends State<CookiePage> {
         title: Text('Cookie of the Day'),
         actions: actions(context),
       ),
-      body: Center(
-      child: Text('${cookies.cookieOfTheDay}'),
-      )
+      body: GestureDetector(
+        onTap: forceRedraw,
+        child: Container(
+          // without color, it won't fill the screen
+          color: Theme.of(context).canvasColor,
+          child: Center(
+            child: Text('${cookies.cookieOfTheDay}', textScaleFactor: 1.5)
+          )
+        ),
+      ),
     );
   }
 
