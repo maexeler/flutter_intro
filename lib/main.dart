@@ -28,7 +28,6 @@ class Cookies extends ChangeNotifier {
 
 void main() {
   final cookieData = Cookies();
-  Provider.debugCheckInvalidValueType = null;
   runApp(MyApp(cookieData));
 }
 
@@ -38,7 +37,7 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Provider<Cookies>(
+    return ChangeNotifierProvider<Cookies>(
       create: (_) => cookies,
       child: MaterialApp(
         title: 'Flutter Into',
