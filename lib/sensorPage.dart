@@ -10,28 +10,33 @@ class SensorPage extends StatefulWidget {
 }
 
 class _SensorPageState extends State<SensorPage> {
-  int delayCount = 0;
+  int _delayCount = 0;
   double _ax = 0, _ay = 0, _az = 0;
   StreamSubscription<dynamic> _accelerometerSubscription;
 
   void initState() {
     super.initState();
     // Subscribe for accelerator events
-    _accelerometerSubscription = accelerometerEvents.listen((event) {
-      // We do not need evey event
-      if (++delayCount < 20) return; delayCount = 0;
+    _accelerometerSubscription = accelerometerEvents.listen(
+      // This function will be called every time new data arrive
+      (event) {
+        // We do not need evey event
+        if (++_delayCount < 10) return; _delayCount = 0;
 
-      // whenever we get new data, force redraw by calling setState()
-      setState(() {
-        // Copy values to local state
-        _ax = event.x; _ay = event.y; _az = event.z;
-      });
-    });
+        // whenever we get new data,
+        // copy the values to the local state
+        // and force a redraw by calling setState()
+        setState(() {
+          _ax = event.x; _ay = event.y; _az = event.z;
+        });
+      }
+    );
   }
 
   void dispose() {
-    super.dispose();
+    // Cancel our subscription
     _accelerometerSubscription.cancel();
+    super.dispose();
   }
 
   @override
@@ -50,13 +55,11 @@ class _SensorPageState extends State<SensorPage> {
     ));
   }
 
-  String _d2s(double d) => d.toStringAsFixed(2);
-
   Widget sensorView(double ax, double ay, double az) {
     return Expanded(
         child: Padding(
             padding: EdgeInsets.all(10.0),
-            // A CustomPaint is widget which needs a paint strategy (a Painter)
+            // A CustomPaint is a widget which needs a paint strategy (a Painter)
             child:CustomPaint(
               size: Size.infinite,
               painter: SpiritLevelPainter(ax, ay),
@@ -64,6 +67,8 @@ class _SensorPageState extends State<SensorPage> {
         )
     );
   }
+
+  String _d2s(double d) => d.toStringAsFixed(2);
 }
 
 /// SpiritLevelPainter serves as a Painter strategy for a CustomPaint widget
@@ -104,7 +109,7 @@ class SpiritLevelPainter extends CustomPainter {
   }
 
   /// The normalized data is in the range [-1..1]
-  /// and not outside the unit circle
+  /// and inside the unit circle
   List<double> _normalizeData({double scaleBy = 1.0}) {
     double x,y;
     // Compensate for gravitation

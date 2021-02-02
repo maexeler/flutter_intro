@@ -79,7 +79,7 @@ class _CookiePageState extends State<CookiePage> {
       body: GestureDetector(
         onTap: forceRedraw,
         child: Container(
-          // without color, it won't fill the screen
+          // Container should fill the whole screen but without a color, it won't do that
           color: Theme.of(context).canvasColor,
           child: Center(
             child: Text('${cookies.cookieOfTheDay}', textScaleFactor: 1.5)

@@ -490,7 +490,7 @@ dependencies:
     sdk: flutter
 ```
 Dummerweise muss der Schüttelsensor in einem StatefulWidget verwendet werden. Wir passen also unsere CookiePage entsprechend an und ergänzen sie mit einer ```initState()```-Funktion gemäss dem Beispiel aus shake.
-In ```onPhoneShake:``` müssen wir nichts tun ausser setState() aufzurufen, es wird automatisch ein Neuzeichnen ausgelöst. Dieses wiederum besorgt sich dann bei der cookies-Datenstruktur eine neue Weisheit.
+In ```onPhoneShake:``` rufen wir ```forceRedraw()``` auf. Diese löst das Neuzeichnen aus.
 
 ```dart
 class CookiePage extends StatefulWidget {
@@ -500,85 +500,130 @@ class CookiePage extends StatefulWidget {
 
 class _CookiePageState extends State<CookiePage> {
 
+  forceRedraw() {setState((){});} // Do nothing, only used for redrawing the page
+
   @override
   void initState() {
     super.initState();
-    ShakeDetector detector = 
-      ShakeDetector.autoStart(onPhoneShake: () {
-      setState((){}); // Force redraw
-    });
+    ShakeDetector detector = ShakeDetector.autoStart(
+        onPhoneShake: () {forceRedraw();}
+    );
   }
 
 ...
 
 }
 ```
-## Sch..., alles rot! Wieso läuft dieses Ding nicht?
-Flutter versucht uns vor Fehlern zu schützen. Dazu analysiert es den Code und gibt allenfalls Warnungen aus auf den Bilschirm.  
-Der wichtigste Teil der Fehlermeldung ist:
-
-```
-This is likely a mistake, as Provider will not automatically update dependents when Cookies is updated.
-```
-
-Flutter hat bemerkt, dass unsere Seite nicht automatisch neu gezeichnet wird, falls sich die cookie-Daten ändern.  
-Das ist aber exakt was wir haben wollen. Wir wollen keine neue Weisheit wenn sich etwas in den cookie-Daten geändert hat, sondern erst, wenn wir durch Schütteln eine neue Weisheit verlangen.  
-
-Als Lösungsansatz schlägt Flutter vor, die Analyseausgabe in main() zu unterbinden. Und genau das machn wir jetzt:
+Damit sie diese Funktionalität auch im Emulator benützen können, wickeln wir unseren Text noch in einen [GestureDetector](https://flutter.dev/docs/cookbook/gestures/handling-taps) ein.
+Auch dieser benutzt ```forceRedraw()``` für das Auslösen des Neuzeichnens.
 ```dart
-void main() {
-  Provider.debugCheckInvalidValueType = null; // <- add this to disable check
+@override
+  Widget build(BuildContext context) {
+    var cookies = Provider.of<Cookies>(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Cookie of the Day'),
+        actions: actions(context),
+      ),
+      body: GestureDetector(
+        onTap: forceRedraw,
+        child: Container(
+          // Container should fill the whole screen but without a color, it won't do that
+          color: Theme.of(context).canvasColor,
+          child: Center(
+            child: Text('${cookies.cookieOfTheDay}', textScaleFactor: 1.5)
+          )
+        ),
+      ),
+    );
+  }
 
-  runApp(MyApp());
-}
 ```
-Nun sollte das Ding eigentlich laufen 😀  
+Probieren sie das aus, sowohl Schütteln als auch BFerühren sollte eine neue Weisheit anzeigen.  
 
-Beachten sie aber, dass solche Mechanismen aber nur dann abgestellt werden sollten, falls sie sich wirklich sicher sind, dass sie es besser wissen.
 
 # SensorPage
-Die SensorPage zeigt nur das Nötigste. Wir brauchen ein StatefulWidget damit wir uns in der ```initState()```-Funktion an die ```accelerometerEvents``` anhängen können. In der ```dispose()```-Funktion melden wir uns dann wieder ab.
-In der Callbackfunktion nehmen wir nur jedes 20igste Event entgegen, kopieren die erhaltenen Werte in den lokalen Zustand und lösen das Neuzeichnen aus.
+Das SensorPage-Widget soll ihnen zwei Dinge zeigen. Einerseits wie man sich an einen Sensordatenstream anbindet und andererseits, wie sie mit einem CustomPaint-Widget und einer CustomPainter-Strategie die erhaltenen Werte anzeigen können.
 
-In der ```build()```-Funktion erstellen wir ein rudimentäres GUI um die Daten anzuzeigen.
+## Sensoranbindung
+wir benutzen das [sensors](https://pub.dev/packages/sensors)-Package welches wir bereits in [Sensoren](##Sensoren) eingebunden haben.
 
-Beachten sie dass wir die Daten in der Funktion ```directionIcon()```mittels eines Schwellenwertes in Richtungsinformationen umsetzen.
-Testen sie nie auf einen bestimmten Sensorwert sondern immer gegen eine Schwelle oder ein Intervall. Sensorwerte sind mit Rauschen behaftet und es kann sein, dass ein bestimmter Wert nie auftritt.
+Sensoren sollten in den Lifecycle-Methoden installiert und wider frei gegeben werden. Zudem müssen wir nach Erhalt der Daten jeweils das Neuzeichnen der Page veranlassen.  
+Beide Fälle verlangen, dass wir ein StateFulWidget verwenden.
 ```dart
-import 'package:flutter/material.dart';
-import 'dart:async';
-import 'package:sensors/sensors.dart';
-
 class SensorPage extends StatefulWidget {
   @override
   _SensorPageState createState() => _SensorPageState();
 }
 
 class _SensorPageState extends State<SensorPage> {
-  int delayCount = 0;
+  // todo: define local state variables
+
+  void initState() {
+    super.initState();
+    // todo: connect to the senors package
+  }
+
+  void dispose() {
+    super.dispose();
+    // todo: close sensor connection
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // todo: show content with sensor data
+  }
+}
+```
+Das Beispiel aus [sensors](https://pub.dev/packages/sensors/example) ist etwas überfrachtet.  
+Wir werden nur die Acceleratordaten benutzen. Jedesmal wenn wir neue Daten vom Sensor erhalten, kopieren wir diese in unseren lokalen Zustand und lösen ein Neuzeichnen aus.  
+
+Studieren sie den Code mitsamt den Kommentaren um zu sehen was läuft.
+```dart
+import 'package:sensors/sensors.dart';
+...
+
+class _SensorPageState extends State<SensorPage> {
+  int _delayCount = 0;
   double _ax = 0, _ay = 0, _az = 0;
   StreamSubscription<dynamic> _accelerometerSubscription;
 
   void initState() {
     super.initState();
     // Subscribe for accelerator events
-    _accelerometerSubscription = accelerometerEvents.listen((event) {
-      // We do not need evey event
-      if (++delayCount < 20) return; delayCount = 0;
+    _accelerometerSubscription = accelerometerEvents.listen(
+      // This function will be called every time new data arrive
+      (event) {
+        // We do not need evey event
+        if (++_delayCount < 10) return; _delayCount = 0;
 
-      // whenever we get new data, force redraw by calling setState()
-      setState(() {
-        // Copy values to local state
-        _ax = event.x; _ay = event.y; _az = event.z;
-      });
-    });
+        // whenever we get new data,
+        // copythe values to the local state
+        // and force a redraw by calling setState()
+        setState(() {
+          _ax = event.x; _ay = event.y; _az = event.z;
+        });
+      }
+    );
   }
 
   void dispose() {
-    super.dispose();
+    // Cancel our subscription
     _accelerometerSubscription.cancel();
+    super.dispose();
   }
 
+  @override
+  Widget build(BuildContext context) {
+    ...
+  }
+}
+```
+
+## Darstellung der Sensordaten
+Unser Seite bauen wir uns wie immer mit Hilfe eines Scaffold-Wigets zusammen.  
+Wir haben eine Spalte mit zwei Einträgen. Im oberen Teil werden wir uns eine Wasserwaage bauen, im unteren Teil reicht ein Text-Wiget für die Ausgabe der Daten.
+```dart
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -588,21 +633,126 @@ class _SensorPageState extends State<SensorPage> {
       body: Center(
         child: Column(
           children: [
-            Expanded(child: Center(child: directionIcon(2.5))),
+            sensorView(_ax, _ay, _az),
             Text('Accel: x: ${_d2s(_ax)}, y: ${_d2s(_ay)}, z: ${_d2s(_az)}', textScaleFactor: 1.5,),
           ],
         ),
     ));
   }
 
-  Widget directionIcon(double threshold) {
-    if (_ay < -threshold) return Icon(Icons.arrow_upward);
-    if (_ay >  threshold) return Icon(Icons.arrow_downward);
-    if (_ax < -threshold) return Icon(Icons.arrow_left_sharp);
-    if (_ax >  threshold) return Icon(Icons.arrow_right_alt);
-    return Icon(Icons.account_circle_outlined);
+  Widget sensorView(double ax, double ay, double az) {
+    ... // todo: show the sensor values graphicaly
   }
 
   String _d2s(double d) => d.toStringAsFixed(2);
+```
+## Eine Wasserwage implementieren
+Damit wir in Flutter selber zeichnen können, brachen wir ein passendes Widget, nämlich ein ```CustomPaint```.
+Dieses Widget muss wie üblch in der Widgethierarchie eingfügt werden.  
+Damit es weis was es anzeigen soll, bracht es eine Zeichnungsstrategie, einen ```Painter```. In unserem Fall ist das ein ```SpiritLevelPainter```-Objekt.
+Diese Klasse müssen wir selbst erstellen. Nur sie kann wissen, dass wir eine Wasserwaage bauen wollen und was wir dazu angezeigen müssen.  
+
+Ergänzen sie die Funktion sensorView() folgendermassen:
+```dart
+Widget sensorView(double ax, double ay, double az) {
+    return Expanded(
+        child: Padding(
+            padding: EdgeInsets.all(10.0),
+            // A CustomPaint is a widget which needs a paint strategy (a Painter)
+            child:CustomPaint(
+              size: Size.infinite,
+              painter: SpiritLevelPainter(ax, ay),
+            )
+        )
+    );
+  }
+```
+## Die Spirit Level Painter Strategie
+Ein CustomPaint braucht ein Painter-Objekt um sich darzustellen. Folgerichtig muss unser SpiritLevelPainter von Painter erben.  
+Painter gibt vor, dass wir die Funktionen 'paint(..)' und 'shouldRepaint(..)' überschreiben müssen.  
+
+Daraus ergibt sich der folgende Code:
+```dart
+/// SpiritLevelPainter serves as a Painter strategy for a CustomPaint widget
+///
+/// We have to override paint(..) as well as shouldRepaint(..)
+class SpiritLevelPainter extends CustomPainter {
+  double ax, ay;
+  SpiritLevelPainter(this.ax, this.ay);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bubbleRadius = 10.0;
+    // Calculate the parameters from the actual size
+    var radius = size.shortestSide/2-bubbleRadius;
+    var center = Offset(size.width/2, size.height/2);
+
+    // draw circumference of the spirit level
+    var paint = Paint()
+      ..color = Colors.black
+      ..style = PaintingStyle.stroke;
+    canvas.drawCircle(center, radius+bubbleRadius, paint);
+    canvas.drawCircle(center, bubbleRadius+3.0, paint);
+
+    // Get normalized sensor data
+    var normalizedData = _normalizeData(scaleBy: 5.0);
+
+    // Draw the bubble
+    paint
+      ..color = Colors.yellow
+      ..style = PaintingStyle.fill;
+    var bubbleCenter = Offset(radius * normalizedData[0], radius * normalizedData[1]);
+    bubbleCenter = bubbleCenter.translate(center.dx, center.dy);
+    canvas.drawCircle(bubbleCenter, bubbleRadius, paint);
+    paint
+      ..color = Colors.black
+      ..style = PaintingStyle.stroke;
+    canvas.drawCircle(bubbleCenter, bubbleRadius, paint);
+  }
+
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+```
+
+### _normalizeData(..)
+Die Funktion '_normalizeData(..)' ist ein wenig ein Biest.  
+Sie benutzt die Sensorwerte aus unseren Zustand und eliminiert erst den Einfluss der Gravitation.  
+
+Anschliessend streckt sie die Wert um den Faktor 'scaleBy' damit wir eine bessere Auflösung kriegen.  
+Bessere Auflösung meint hier, dass schon eine kleine Unebenheit eine grosse Bewegung der Blase hervorruft.  
+
+Anschliessend stellt sie sicher, dass die errechneten Wert nie ausserhalb des Einheitskreises liegen.  
+
+Das Resultat der Berechnung ist ein Array mit dem x-Wert an der Stelle null und dem y-Wert an der Stelle eins.  
+Die x und y-Werte sind so normiert, dass sie plus/minus Eins nicht überschreiten.  
+In der Zeichnungsfunktion brauchen wir die Werte zur Skalierung des Kreismittelpunktes der Blase.
+```dart
+class SpiritLevelPainter extends CustomPainter {
+  ...
+
+  /// The normalized data is in the range [-1..1]
+  /// and inside the unit circle
+  List<double> _normalizeData({double scaleBy = 1.0}) {
+    double x,y;
+    // Compensate for gravitation
+    x = (ax/9.8);
+    y = (-ay/9.8);
+
+    // scale values
+    x *= scaleBy;
+    y *= scaleBy;
+
+    // Normalize to [-1..1]
+    if (x > 1) x = 1; if (x < -1) x = -1;
+    if (y > 1) y = 1; if (y < -1) y = -1;
+
+    // Ensure circle restrictions
+    var len = sqrt(x*x + y*y);
+    if (len > 1.0) {
+      x /= len;
+      y /= len;
+    }
+    return [x, y];
+  }
 }
 ```
