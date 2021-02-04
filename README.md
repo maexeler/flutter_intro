@@ -346,12 +346,12 @@ import 'package:provider/provider.dart';
 ...
 
 class MyApp extends StatelessWidget {
-  final cookies;
+  final cookies = Cookies();
   MyApp(this.cookies);
 
   @override
   Widget build(BuildContext context) {
-    return Provider<Cookies>( // <- new 
+    return ChangeNotifierProvider<Cookies>( // <- new 33333
       create: (_) => cookies, // provide cookie data
       child: MaterialApp(
         ...
