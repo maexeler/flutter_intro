@@ -8,7 +8,8 @@ import 'package:flutter_intro/sensorPage.dart';
 class Cookies extends ChangeNotifier {
   List<String> _cookies; // private member
 
-  Cookies() { // Constructor
+  Cookies() {
+    // Constructor
     _cookies = [
       'Der gute Tag beginnt mit aufstehen\nder schlechte auch',
       'Auch ein blindes Huhn findet ein Korn',
@@ -38,16 +39,15 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider<Cookies>(
-      create: (_) => cookies,
-      child: MaterialApp(
-        title: 'Flutter Into',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          visualDensity: VisualDensity.adaptivePlatformDensity,
-        ),
-        home: CookiePage(),
-      )
-    );
+        create: (_) => cookies,
+        child: MaterialApp(
+          title: 'Flutter Into',
+          theme: ThemeData(
+            primarySwatch: Colors.red,
+            visualDensity: VisualDensity.adaptivePlatformDensity,
+          ),
+          home: CookiePage(),
+        ));
   }
 }
 
@@ -57,15 +57,16 @@ class CookiePage extends StatefulWidget {
 }
 
 class _CookiePageState extends State<CookiePage> {
-
-  forceRedraw() {setState((){});} // Do nothing, only used for redrawing the page
+  forceRedraw() {
+    setState(() {});
+  } // Do nothing, only used for redrawing the page
 
   @override
   void initState() {
     super.initState();
-    ShakeDetector detector = ShakeDetector.autoStart(
-        onPhoneShake: () {forceRedraw();}
-    );
+    ShakeDetector detector = ShakeDetector.autoStart(onPhoneShake: () {
+      forceRedraw();
+    });
   }
 
   @override
@@ -79,12 +80,12 @@ class _CookiePageState extends State<CookiePage> {
       body: GestureDetector(
         onTap: forceRedraw,
         child: Container(
-          // Container should fill the whole screen but without a color, it won't do that
-          color: Theme.of(context).canvasColor,
-          child: Center(
-            child: Text('${cookies.cookieOfTheDay}', textScaleFactor: 1.5)
-          )
-        ),
+            // Container should fill the whole screen
+            // but without a color, it won't do that
+            color: Theme.of(context).canvasColor,
+            child: Center(
+                child:
+                    Text('${cookies.cookieOfTheDay}', textScaleFactor: 1.5))),
       ),
     );
   }
@@ -94,17 +95,17 @@ class _CookiePageState extends State<CookiePage> {
       IconButton(
           icon: Icon(Icons.edit_rounded),
           onPressed: () {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => CookieMaintenancePage()));
-          }
-      ),
+            Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => CookieMaintenancePage()));
+          }),
       IconButton(
           icon: Icon(Icons.settings),
           onPressed: () {
-            Navigator.push(context,
-                MaterialPageRoute(builder: (context) => SensorPage()));
-          }
-      )
+            Navigator.push(
+                context, MaterialPageRoute(builder: (context) => SensorPage()));
+          })
     ];
   }
 }
@@ -132,10 +133,7 @@ class _CookieMaintenanceState extends State<CookieMaintenancePage> {
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Expanded(child: cookieList(context)),
-            cookieForm(context)
-          ],
+          children: [Expanded(child: cookieList(context)), cookieForm(context)],
         ),
       ),
     );
@@ -144,21 +142,20 @@ class _CookieMaintenanceState extends State<CookieMaintenancePage> {
   Widget cookieList(BuildContext context) {
     var _cookies = Provider.of<Cookies>(context);
     return ListView.builder(
-      itemCount: _cookies.cookies.length,
-      itemBuilder: (context, index) {
-        return Card(child: ListTile(
-          title: Text(_cookies.cookies[index]),
-        ));
-      }
-    );
+        itemCount: _cookies.cookies.length,
+        itemBuilder: (context, index) {
+          return Card(
+              child: ListTile(
+            title: Text(_cookies.cookies[index]),
+          ));
+        });
   }
 
   Widget cookieForm(BuildContext context) {
     var _cookies = Provider.of<Cookies>(context);
-    return Column(
-      children: <Widget>[
-        TextField(controller: myController),
-        ElevatedButton(
+    return Column(children: <Widget>[
+      TextField(controller: myController),
+      ElevatedButton(
           child: Text('Anfügen'),
           onPressed: () {
             if (myController.text.isNotEmpty) {
@@ -167,9 +164,7 @@ class _CookieMaintenanceState extends State<CookieMaintenancePage> {
                 myController.text = '';
               });
             }
-          }
-        )
-      ]
-    );
+          })
+    ]);
   }
 }
